@@ -1,0 +1,283 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <limits>
+
+using namespace std;
+
+struct Process{
+    int at;
+    int bt; 
+    int ct;
+    int tat;
+    int wt;
+    int priority;
+};
+
+bool compareArrival(const Process& a, const Process& b){
+    return a.at < b.at;
+}
+
+int calcFCFS(vector<Process>& p){
+    int cTime = 0;
+    int wtSum = 0;
+
+    for(int i = 0; i < p.size(); i++){
+        cTime += p[i].bt;
+
+        p[i].ct = cTime;
+        p[i].tat = p[i].ct - p[i].at;
+        p[i].wt = p[i].tat - p[i].bt;
+
+        if(i < p.size()-1 && cTime < p[i+1].at){
+            cTime += p[i+1].at;
+        }
+        wtSum += p[i].wt;        
+    }
+    return wtSum;
+}
+
+int calcPriority(vector<Process>& p){
+    int completed = 0;
+    int cTime = 0;
+    int wtSum = 0;
+    vector<int> remainingTime(p.size());
+    for(int i = 0 ; i < p.size(); i++){
+            remainingTime[i] = p[i].bt;
+    }
+
+    while(completed < p.size()){
+        int index = -1;
+        int highestPriority = numeric_limits<int>::max();
+        
+        for(int i = 0; i < p.size(); i++){
+            if(p[i].at <= cTime && p[i].priority < highestPriority && remainingTime[i]> 0){
+                index = i;
+                highestPriority = p[i].priority;
+            }
+        }
+
+        if(index != -1){
+            if(remainingTime[index] > 0){
+               cTime += remainingTime[index];
+               remainingTime[index] = 0;
+            }
+            if(remainingTime[index] == 0){
+                completed++;
+                p[index].ct = cTime;
+                p[index].tat = p[index].ct - p[index].at;
+                p[index].wt = p[index].tat - p[index].bt;
+                wtSum += p[index].wt;
+            }
+        }
+        else{
+            cTime++;
+        }
+    }
+    return wtSum;
+}
+
+int calcPriorityPremptive(vector<Process>& p){
+    int completed = 0; 
+    int cTime = 0; 
+    int wtSum = 0;
+    vector<int> remainingTime(p.size());
+    for(int i = 0 ; i < p.size(); i++){
+        remainingTime[i] = p[i].bt;
+    }
+
+    while(completed < p.size()){
+        int index = -1;
+        int highestPriority = numeric_limits<int>::max();
+
+        for(int i = 0; i < p.size() && p[i].at <= cTime ; i++){
+            if(p[i].priority < highestPriority && remainingTime[i] > 0){
+                index = i;
+                highestPriority = p[i].priority;
+            }
+        }
+        if(index != -1){
+            remainingTime[index] -- ;
+            cTime++;
+
+            if(remainingTime[index] == 0){
+                completed++;
+                p[index].ct = cTime;
+                p[index].tat = p[index].ct - p[index].at;
+                p[index].wt = p[index].tat - p[index].bt;
+                wtSum += p[index].wt; 
+            }
+        }
+        else{
+            cTime++;
+        }
+    }
+    return wtSum;
+}
+
+int calcRoundRobin(vector<Process>& p, int quantum){
+    int completed = 0;
+    int cTime = 0;
+    int wtSum = 0;
+    vector<int> remainingTime(p.size());
+    for(int i = 0 ; i < p.size(); i++){
+        remainingTime[i] = p[i].bt;
+    }
+    int index = 0;
+    while(completed < p.size()){
+        if(remainingTime[index] > 0){
+            if(remainingTime[index] > quantum){
+                cTime += quantum;
+                remainingTime[index] = remainingTime[index] - quantum;
+            }
+            else{
+                cTime += remainingTime[index];
+                remainingTime[index] = 0;
+
+                completed++;
+                p[index].ct = cTime;
+                p[index].tat = p[index].ct - p[index].at;
+                p[index].wt  = p[index].tat - p[index].bt;
+                wtSum += p[index].wt;
+
+            }
+        }
+        index = (index + 1)% p.size();
+
+    }
+    return wtSum;
+}
+
+int calcSJF(vector<Process>& p){
+    int cTime = 0; 
+    int completed = 0;
+    int wtSum = 0;
+    vector<int> remTime(p.size());
+    for(int i = 0; i < p.size();i++){
+        remTime[i] = p[i].bt;
+    }
+
+    while(completed < p.size()){
+        int shortestIndex = -1;
+        int shortestTime = numeric_limits<int>::max();
+        for(int i = 0; i < p.size(); i ++){
+            if(p[i].at <= cTime && remTime[i] > 0){
+                if(remTime[i] < shortestTime){
+                    shortestIndex = i; 
+                    shortestTime = remTime[i];
+                }
+            }
+        }
+
+        if(shortestIndex == -1){
+            cTime++;
+            continue;
+        }
+
+        remTime[shortestIndex] -- ;
+        cTime++;
+
+        if(remTime[shortestIndex] == 0){
+            completed++;
+            p[shortestIndex].ct = cTime;
+            p[shortestIndex].tat = p[shortestIndex].ct - p[shortestIndex].at;
+            p[shortestIndex].wt = p[shortestIndex].tat - p[shortestIndex].bt;
+            wtSum += p[shortestIndex].wt;
+        }
+    }
+
+    return wtSum;
+}
+
+void inputPriority(vector<Process>& p){
+    for(int i = 0; i < p.size(); i++){
+        cout<<"Enter the priority for process "<< i+1<<endl;
+        cin>>p[i].priority;
+        cout<<endl;
+    }
+}
+
+int main(){
+    int choice;
+    cout << "Select Scheduling Algorithm:" << endl;
+    cout << "1. FCFS" << endl;
+    cout << "2. Priority (Non-Preemptive)" << endl;
+    cout << "3. Priority (Preemptive)" << endl;
+    cout << "4. Round Robin" << endl;
+    cout << "5. Shortest Job First (SJF)" << endl;
+    cout << "Enter your choice: ";
+    cin >> choice;
+
+    int numProcesses;
+    cout << "Enter number of processes: ";
+    cin >> numProcesses;
+    vector<Process> processes(numProcesses);
+
+    for(int i = 0; i < processes.size(); i++){
+        cout<<"Enter the arrival time for process "<< i+1 << ": ";
+        cin >> processes[i].at;
+        cout<<"Enter the burst time for process "<< i+1 << ": ";
+        cin >> processes[i].bt;
+    }
+
+    switch(choice){
+        case 1: {
+            sort(processes.begin(), processes.end(), compareArrival);
+            int totalWt = calcFCFS(processes);
+            cout<<"Process\tArrival\tBurst\tTAT\tWT"<<endl;
+            for(int i = 0; i < processes.size(); i++){
+                cout<<i+1<<"\t"<<processes[i].at<<"\t"<<processes[i].bt<<"\t"<<processes[i].tat<<"\t"<<processes[i].wt<<endl;
+            }
+            cout<<"Average waiting time = "<<(float)totalWt/numProcesses<<endl;
+            break;
+        }
+        case 2: {
+            inputPriority(processes);
+            sort(processes.begin(), processes.end(), compareArrival);
+            int totalWt = calcPriority(processes);
+            cout<<"Process\tArrival\tBurst\tPriority\tTAT\tWT"<<endl;
+            for(int i = 0; i < processes.size(); i++){
+                cout<<i+1<<"\t"<<processes[i].at<<"\t"<<processes[i].bt<<"\t"<<processes[i].priority<<"\t\t"<<processes[i].tat<<"\t"<<processes[i].wt<<endl;
+            }
+            cout<<"Average waiting time = "<<(float)totalWt/numProcesses<<endl;
+            break;
+        }
+        case 3: {
+            inputPriority(processes);
+            sort(processes.begin(), processes.end(), compareArrival);
+            int totalWt = calcPriorityPremptive(processes);
+            cout<<"Process\tArrival\tBurst\tPriority\tTAT\tWT"<<endl;
+            for(int i = 0; i < processes.size(); i++){
+                cout<<i+1<<"\t"<<processes[i].at<<"\t"<<processes[i].bt<<"\t"<<processes[i].priority<<"\t\t"<<processes[i].tat<<"\t"<<processes[i].wt<<endl;
+            }
+            cout<<"Average waiting time = "<<(float)totalWt/numProcesses<<endl;
+            break;
+        }
+        case 4: {
+            int quantum;
+            cout << "Enter the time quantum: ";
+            cin >> quantum;
+            int totalWt = calcRoundRobin(processes, quantum);
+            cout<<"Process\tArrival\tBurst\tTAT\tWT"<<endl;
+            for(int i = 0; i < processes.size(); i++){
+                cout<<i+1<<"\t"<<processes[i].at<<"\t"<<processes[i].bt<<"\t"<<processes[i].tat<<"\t"<<processes[i].wt<<endl;
+            }
+            cout<<"Average waiting time = "<<(float)totalWt/numProcesses<<endl;
+            break;
+        }
+        case 5: {
+            sort(processes.begin(), processes.end(), compareArrival);
+            int totalWt = calcSJF(processes);
+            cout<<"Process\tArrival\tBurst\tTAT\tWT"<<endl;
+            for(int i = 0; i < processes.size(); i++){
+                cout<<i+1<<"\t"<<processes[i].at<<"\t"<<processes[i].bt<<"\t"<<processes[i].tat<<"\t"<<processes[i].wt<<endl;
+            }
+            cout<<"Average waiting time = "<<(float)totalWt/numProcesses<<endl;
+            break;
+        }
+        default:
+            cout << "Invalid choice!" << endl;
+    }
+
+    return 0;
+}
