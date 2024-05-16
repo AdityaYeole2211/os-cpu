@@ -1,0 +1,216 @@
+import sys
+
+class Process:
+    def __init__(self, at, bt):
+        self.at = at
+        self.bt = bt
+        self.ct = 0
+        self.tat = 0
+        self.wt = 0
+        self.priority = 0
+
+def compare_arrival(a, b):
+    return a.at < b.at
+
+def calc_fcfs(p):
+    c_time = 0
+    wt_sum = 0
+
+    for i in range(len(p)):
+        c_time += p[i].bt
+
+        p[i].ct = c_time
+        p[i].tat = p[i].ct - p[i].at
+        p[i].wt = p[i].tat - p[i].bt
+
+        if i < len(p) - 1 and c_time < p[i + 1].at:
+            c_time += p[i + 1].at
+        
+        wt_sum += p[i].wt
+
+    return wt_sum
+
+def calc_priority(p):
+    completed = 0
+    c_time = 0
+    wt_sum = 0
+    remaining_time = [proc.bt for proc in p]
+
+    while completed < len(p):
+        index = -1
+        highest_priority = sys.maxsize
+
+        for i in range(len(p)):
+            if p[i].at <= c_time and p[i].priority < highest_priority and remaining_time[i] > 0:
+                index = i
+                highest_priority = p[i].priority
+        
+        if index != -1:
+            if remaining_time[index] > 0:
+                c_time += remaining_time[index]
+                remaining_time[index] = 0
+            
+            if remaining_time[index] == 0:
+                completed += 1
+                p[index].ct = c_time
+                p[index].tat = p[index].ct - p[index].at
+                p[index].wt = p[index].tat - p[index].bt
+                wt_sum += p[index].wt
+        else:
+            c_time += 1
+    
+    return wt_sum
+
+def calc_priority_preemptive(p):
+    completed = 0
+    c_time = 0
+    wt_sum = 0
+    remaining_time = [proc.bt for proc in p]
+
+    while completed < len(p):
+        index = -1
+        highest_priority = sys.maxsize
+
+        for i in range(len(p)):
+            if p[i].at <= c_time and p[i].priority < highest_priority and remaining_time[i] > 0:
+                index = i
+                highest_priority = p[i].priority
+        
+        if index != -1:
+            remaining_time[index] -= 1
+            c_time += 1
+
+            if remaining_time[index] == 0:
+                completed += 1
+                p[index].ct = c_time
+                p[index].tat = p[index].ct - p[index].at
+                p[index].wt = p[index].tat - p[index].bt
+                wt_sum += p[index].wt
+        else:
+            c_time += 1
+    
+    return wt_sum
+
+def calc_round_robin(p, quantum):
+    completed = 0
+    c_time = 0
+    wt_sum = 0
+    remaining_time = [proc.bt for proc in p]
+    index = 0
+
+    while completed < len(p):
+        if remaining_time[index] > 0:
+            if remaining_time[index] > quantum:
+                c_time += quantum
+                remaining_time[index] -= quantum
+            else:
+                c_time += remaining_time[index]
+                remaining_time[index] = 0
+
+                completed += 1
+                p[index].ct = c_time
+                p[index].tat = p[index].ct - p[index].at
+                p[index].wt = p[index].tat - p[index].bt
+                wt_sum += p[index].wt
+
+        index = (index + 1) % len(p)
+
+    return wt_sum
+
+def calc_sjf(p):
+    c_time = 0
+    completed = 0
+    wt_sum = 0
+    rem_time = [proc.bt for proc in p]
+
+    while completed < len(p):
+        shortest_index = -1
+        shortest_time = sys.maxsize
+
+        for i in range(len(p)):
+            if p[i].at <= c_time and rem_time[i] > 0:
+                if rem_time[i] < shortest_time:
+                    shortest_index = i
+                    shortest_time = rem_time[i]
+        
+        if shortest_index == -1:
+            c_time += 1
+            continue
+        
+        rem_time[shortest_index] -= 1
+        c_time += 1
+
+        if rem_time[shortest_index] == 0:
+            completed += 1
+            p[shortest_index].ct = c_time
+            p[shortest_index].tat = p[shortest_index].ct - p[shortest_index].at
+            p[shortest_index].wt = p[shortest_index].tat - p[shortest_index].bt
+            wt_sum += p[shortest_index].wt
+    
+    return wt_sum
+
+def input_priority(p):
+    for i in range(len(p)):
+        print("Enter the priority for process", i + 1)
+        p[i].priority = int(input())
+
+def main():
+    print("Select Scheduling Algorithm:")
+    print("1. FCFS")
+    print("2. Priority (Non-Preemptive)")
+    print("3. Priority (Preemptive)")
+    print("4. Round Robin")
+    print("5. Shortest Job First (SJF)")
+    choice = int(input("Enter your choice: "))
+
+    num_processes = int(input("Enter number of processes: "))
+    processes = []
+
+    for i in range(num_processes):
+        at = int(input(f"Enter the arrival time for process {i + 1}: "))
+        bt = int(input(f"Enter the burst time for process {i + 1}: "))
+        processes.append(Process(at, bt))
+
+    if choice == 2 or choice == 3:
+        input_priority(processes)
+
+    if choice == 1:
+        processes.sort(key=lambda x: x.at)
+        total_wt = calc_fcfs(processes)
+        print("Process\tArrival\tBurst\tTAT\tWT")
+        for i, proc in enumerate(processes):
+            print(f"{i + 1}\t{proc.at}\t{proc.bt}\t{proc.tat}\t{proc.wt}")
+        print(f"Average waiting time = {total_wt / num_processes}")
+    elif choice == 2:
+        processes.sort(key=lambda x: x.at)
+        total_wt = calc_priority(processes)
+        print("Process\tArrival\tBurst\tPriority\tTAT\tWT")
+        for i, proc in enumerate(processes):
+            print(f"{i + 1}\t{proc.at}\t{proc.bt}\t{proc.priority}\t\t{proc.tat}\t{proc.wt}")
+        print(f"Average waiting time = {total_wt / num_processes}")
+    elif choice == 3:
+        processes.sort(key=lambda x: x.at)
+        total_wt = calc_priority_preemptive(processes)
+        print("Process\tArrival\tBurst\tPriority\tTAT\tWT")
+        for i, proc in enumerate(processes):
+            print(f"{i + 1}\t{proc.at}\t{proc.bt}\t{proc.priority}\t\t{proc.tat}\t{proc.wt}")
+        print(f"Average waiting time = {total_wt / num_processes}")
+    elif choice == 4:
+        quantum = int(input("Enter the time quantum: "))
+        total_wt = calc_round_robin(processes, quantum)
+        print("Process\tArrival\tBurst\tTAT\tWT")
+        for i, proc in enumerate(processes):
+            print(f"{i + 1}\t{proc.at}\t{proc.bt}\t{proc.tat}\t{proc.wt}")
+        print(f"Average waiting time = {total_wt / num_processes}")
+    elif choice == 5:
+        processes.sort(key=lambda x: x.at)
+        total_wt = calc_sjf(processes)
+        print("Process\tArrival\tBurst\tTAT\tWT")
+        for i, proc in enumerate(processes):
+            print(f"{i + 1}\t{proc.at}\t{proc.bt}\t{proc.tat}\t{proc.wt}")
+        print(f"Average waiting time = {total_wt / num_processes}")
+    else:
+        print("Invalid choice!")
+
+if __name__ == "__main__":
+    main()
